@@ -116,6 +116,8 @@ uploaded = st.file_uploader("Choose an image...", type=["jpg","jpeg","png"], key
 if uploaded:
     file_bytes = uploaded.read()
     image = Image.open(io.BytesIO(file_bytes)).convert("L")  # convert to grayscale
+# 👇 Add this toggle before preprocessing
+    invert_choice = st.checkbox("Invert colors (for light backgrounds)", value=True)
 
     # Center-crop to square
     w, h = image.size
@@ -132,7 +134,9 @@ if uploaded:
     img_array = np.array(image).astype("float32") / 255.0
 
     # ✅ Invert so background = dark, clothes = bright
+    if invert_choice:
     img_array = 1.0 - img_array
+
 
     # Reshape for model
     img_array = img_array.reshape(1, 28, 28, 1)
