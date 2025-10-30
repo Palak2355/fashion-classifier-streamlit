@@ -19,6 +19,13 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+import xgboost as xgb
+import keras_tuner as kt
 import ipywidgets as widgets
 from IPython.display import display, clear_output
 from PIL import Image
@@ -36,8 +43,8 @@ print("--- Check Runtime: GPU should be enabled for fast training! ---")
 
 # --- Load Data from CSV ---
 try:
-    train_df = pd.read_csv('/content/drive/MyDrive/ml project/fashion-mnist_train.csv')
-    test_df = pd.read_csv('/content/drive/MyDrive/ml project/fashion-mnist_test.csv')
+    train_df = pd.read_csv('fashion-mnist_train.csv')  # Adjust path if needed
+    test_df = pd.read_csv('fashion-mnist_test.csv')
     print(f"\nTraining data shape: {train_df.shape}")
     print(f"Test data shape: {test_df.shape}")
 except FileNotFoundError:
@@ -74,20 +81,96 @@ plt.suptitle("Sample Fashion-MNIST Images (Loaded from CSV)")
 plt.show()
 
 
-print("\n--- Training Logistic Regression (LR) ---")
-# Increased max_iter for higher accuracy stability
-lr_model = LogisticRegression(solver='saga', max_iter=200, random_state=42, n_jobs=-1, verbose=0)
-lr_model.fit(X_train, y_train)
+print("\n--- Training Multiple Models ---")
 
-# Evaluation
-lr_y_pred = lr_model.predict(X_test)
-lr_accuracy = accuracy_score(y_test, lr_y_pred)
-print(f"✅ Logistic Regression Test Accuracy: {lr_accuracy:.4f}")
-print("Classification Report:")
-print(classification_report(y_test, lr_y_pred, target_names=class_names, zero_division=0))
+models = {
+    'Logistic Regression': LogisticRegression(solver='saga', max_iter=200, random_state=42, n_jobs=-1, verbose=0),
+    'Decision Tree': DecisionTreeClassifier(random_state=42),
+    'Random Forest': RandomForestClassifier(random_state=42, n_jobs=-1),
+    'SVM': SVC(random_state=42),
+    'MLP': MLPClassifier(random_state=42, max_iter=200),
+    'XGBoost': xgb.XGBClassifier(random_state=42, n_jobs=-1),
+    'AdaBoost': AdaBoostClassifier(random_state=42)
+}
 
-from google.colab import drive
-drive.mount('/content/drive')
+accuracies_before = {}
+accuracies_after = {}
+
+for name, model in models.items():
+    print(f"\n--- Training {name} ---")
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    accuracies_before[name] = acc
+    print(f"✅ {name} Test Accuracy (Before Tuning): {acc:.4f}")
+
+# Hyperparameter Tuning
+print("\n--- Hyperparameter Tuning ---")
+
+# Logistic Regression
+lr_param_grid = {'C': [0.1, 1, 10], 'solver': ['liblinear', 'saga']}
+lr_grid = GridSearchCV(LogisticRegression(max_iter=200, random_state=42, n_jobs=-1), lr_param_grid, cv=3, scoring='accuracy')
+lr_grid.fit(X_train, y_train)
+lr_tuned = lr_grid.best_estimator_
+lr_tuned_pred = lr_tuned.predict(X_test)
+accuracies_after['Logistic Regression'] = accuracy_score(y_test, lr_tuned_pred)
+print(f"✅ Logistic Regression Tuned Accuracy: {accuracies_after['Logistic Regression']:.4f}")
+
+# Decision Tree
+dt_param_grid = {'max_depth': [None, 10, 20], 'min_samples_split': [2, 5, 10]}
+dt_grid = GridSearchCV(DecisionTreeClassifier(random_state=42), dt_param_grid, cv=3, scoring='accuracy')
+dt_grid.fit(X_train, y_train)
+dt_tuned = dt_grid.best_estimator_
+dt_tuned_pred = dt_tuned.predict(X_test)
+accuracies_after['Decision Tree'] = accuracy_score(y_test, dt_tuned_pred)
+print(f"✅ Decision Tree Tuned Accuracy: {accuracies_after['Decision Tree']:.4f}")
+
+# Random Forest
+rf_param_grid = {'n_estimators': [50, 100], 'max_depth': [None, 10]}
+rf_grid = GridSearchCV(RandomForestClassifier(random_state=42, n_jobs=-1), rf_param_grid, cv=3, scoring='accuracy')
+rf_grid.fit(X_train, y_train)
+rf_tuned = rf_grid.best_estimator_
+rf_tuned_pred = rf_tuned.predict(X_test)
+accuracies_after['Random Forest'] = accuracy_score(y_test, rf_tuned_pred)
+print(f"✅ Random Forest Tuned Accuracy: {accuracies_after['Random Forest']:.4f}")
+
+# SVM
+svm_param_grid = {'C': [0.1, 1], 'kernel': ['linear', 'rbf']}
+svm_grid = GridSearchCV(SVC(random_state=42), svm_param_grid, cv=3, scoring='accuracy')
+svm_grid.fit(X_train, y_train)
+svm_tuned = svm_grid.best_estimator_
+svm_tuned_pred = svm_tuned.predict(X_test)
+accuracies_after['SVM'] = accuracy_score(y_test, svm_tuned_pred)
+print(f"✅ SVM Tuned Accuracy: {accuracies_after['SVM']:.4f}")
+
+# MLP
+mlp_param_grid = {'hidden_layer_sizes': [(100,), (50, 50)], 'alpha': [0.0001, 0.001]}
+mlp_grid = GridSearchCV(MLPClassifier(random_state=42, max_iter=200), mlp_param_grid, cv=3, scoring='accuracy')
+mlp_grid.fit(X_train, y_train)
+mlp_tuned = mlp_grid.best_estimator_
+mlp_tuned_pred = mlp_tuned.predict(X_test)
+accuracies_after['MLP'] = accuracy_score(y_test, mlp_tuned_pred)
+print(f"✅ MLP Tuned Accuracy: {accuracies_after['MLP']:.4f}")
+
+# XGBoost
+xgb_param_grid = {'n_estimators': [50, 100], 'max_depth': [3, 6]}
+xgb_grid = GridSearchCV(xgb.XGBClassifier(random_state=42, n_jobs=-1), xgb_param_grid, cv=3, scoring='accuracy')
+xgb_grid.fit(X_train, y_train)
+xgb_tuned = xgb_grid.best_estimator_
+xgb_tuned_pred = xgb_tuned.predict(X_test)
+accuracies_after['XGBoost'] = accuracy_score(y_test, xgb_tuned_pred)
+print(f"✅ XGBoost Tuned Accuracy: {accuracies_after['XGBoost']:.4f}")
+
+# AdaBoost
+ada_param_grid = {'n_estimators': [50, 100], 'learning_rate': [0.1, 1]}
+ada_grid = GridSearchCV(AdaBoostClassifier(random_state=42), ada_param_grid, cv=3, scoring='accuracy')
+ada_grid.fit(X_train, y_train)
+ada_tuned = ada_grid.best_estimator_
+ada_tuned_pred = ada_tuned.predict(X_test)
+accuracies_after['AdaBoost'] = accuracy_score(y_test, ada_tuned_pred)
+print(f"✅ AdaBoost Tuned Accuracy: {accuracies_after['AdaBoost']:.4f}")
+
+
 
 # --- Prepare data for CNN ---
 # Reshape data from (N, 784) to (N, 28, 28, 1) for CNN input
@@ -158,25 +241,96 @@ history = deep_cnn_model.fit(
 
 # Evaluation
 cnn_loss, cnn_accuracy = deep_cnn_model.evaluate(X_test_cnn, to_categorical(y_test), verbose=0)
-print(f"\n✅ Final DEEPER CNN Test Accuracy: {cnn_accuracy:.4f}")
+print(f"\n✅ Final DEEPER CNN Test Accuracy (Before Tuning): {cnn_accuracy:.4f}")
+accuracies_before['CNN'] = cnn_accuracy
 
-# Save the best model
+# Hyperparameter Tuning for Deep CNN
+print("\n--- Hyperparameter Tuning for Deep CNN ---")
+
+def build_model(hp):
+    model = Sequential()
+    # Tune number of filters in first layer
+    model.add(Conv2D(hp.Int('conv1_filters', min_value=32, max_value=128, step=32), (3, 3), activation='relu', input_shape=(28, 28, 1)))
+    model.add(MaxPooling2D((2, 2)))
+    # Tune number of filters in second layer
+    model.add(Conv2D(hp.Int('conv2_filters', min_value=64, max_value=256, step=64), (3, 3), activation='relu'))
+    model.add(MaxPooling2D((2, 2)))
+    # Tune number of filters in third layer
+    model.add(Conv2D(hp.Int('conv3_filters', min_value=128, max_value=512, step=128), (3, 3), activation='relu'))
+    model.add(Flatten())
+    # Tune dense units
+    model.add(Dense(hp.Int('dense_units', min_value=64, max_value=256, step=64), activation='relu'))
+    # Tune dropout rate
+    model.add(Dropout(hp.Float('dropout', min_value=0.2, max_value=0.5, step=0.1)))
+    model.add(Dense(10, activation='softmax'))
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+tuner = kt.Hyperband(build_model, objective='val_accuracy', max_epochs=10, factor=3, directory='tuner_dir', project_name='fashion_cnn')
+tuner.search(datagen.flow(X_train_cnn, y_train_cat, batch_size=128), epochs=10, validation_data=(X_valid_cnn, y_valid_cat), callbacks=[early_stopping])
+
+# Get the best model
+best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+print(f"Best hyperparameters: {best_hps.values}")
+
+cnn_tuned_model = tuner.hypermodel.build(best_hps)
+cnn_tuned_model.fit(datagen.flow(X_train_cnn, y_train_cat, batch_size=128), epochs=20, validation_data=(X_valid_cnn, y_valid_cat), callbacks=[early_stopping])
+
+# Evaluation after tuning
+cnn_tuned_loss, cnn_tuned_accuracy = cnn_tuned_model.evaluate(X_test_cnn, to_categorical(y_test), verbose=0)
+print(f"\n✅ Final DEEPER CNN Test Accuracy (After Tuning): {cnn_tuned_accuracy:.4f}")
+accuracies_after['CNN'] = cnn_tuned_accuracy
+
+# Save the best tuned model
 model_path = 'best_deep_fashion_classifier_final.h5'
-deep_cnn_model.save(model_path)
-print(f"Best model saved to {model_path}")
+cnn_tuned_model.save(model_path)
+print(f"Best tuned model saved to {model_path}")
 
-# Use the new model accuracy
-deep_cnn_accuracy = cnn_accuracy
+# Use the tuned model accuracy
+deep_cnn_accuracy = cnn_tuned_accuracy
 
 # Create a DataFrame for comparison
+models_list = []
+accuracies_list = []
+notes_list = []
+
+for model_name in accuracies_before.keys():
+    models_list.append(f"{model_name} (Before Tuning)")
+    accuracies_list.append(accuracies_before[model_name])
+    notes_list.append(f"Baseline {model_name}")
+
+for model_name in accuracies_after.keys():
+    models_list.append(f"{model_name} (After Tuning)")
+    accuracies_list.append(accuracies_after[model_name])
+    notes_list.append(f"Tuned {model_name}")
+
 results = pd.DataFrame({
-    'Model': ['Logistic Regression', 'Deep CNN (Optimized)'],
-    'Test Accuracy': [lr_accuracy, deep_cnn_accuracy],
-    'Notes': ['Linear Baseline', 'Deeper Architecture (Expected 92%+, Robust to custom images)']
+    'Model': models_list,
+    'Test Accuracy': accuracies_list,
+    'Notes': notes_list
 })
 
 print("\n--- Model Comparative Analysis ---")
 print(results.sort_values(by='Test Accuracy', ascending=False).to_markdown(index=False))
+
+# Plot accuracies
+import matplotlib.pyplot as plt
+
+models_before = list(accuracies_before.keys())
+acc_before = list(accuracies_before.values())
+acc_after = [accuracies_after[model] for model in models_before]
+
+x = range(len(models_before))
+plt.figure(figsize=(12, 6))
+plt.bar(x, acc_before, width=0.4, label='Before Tuning', align='center')
+plt.bar([i + 0.4 for i in x], acc_after, width=0.4, label='After Tuning', align='center')
+plt.xlabel('Models')
+plt.ylabel('Test Accuracy')
+plt.title('Model Accuracies Before and After Hyperparameter Tuning')
+plt.xticks([i + 0.2 for i in x], models_before, rotation=45)
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 # Load the saved best model for deployment
 model_path = 'best_deep_fashion_classifier_final.h5'
@@ -257,33 +411,5 @@ gui_vbox = widgets.VBox([gui_title, file_upload, button, output_area])
 print("\n--- Interact with the GUI below to test the final model ---")
 display(gui_vbox)
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 
-deep_cnn_model = Sequential([
-    # Block 1
-    Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
-    MaxPooling2D((2, 2)),
-
-    # Block 2
-    Conv2D(64, (3, 3), activation='relu'),
-    MaxPooling2D((2, 2)),
-
-    # NEW Block 3 (Deeper Architecture - Innovation)
-    Conv2D(128, (3, 3), activation='relu'),
-
-    Flatten(),
-    Dense(128, activation='relu'),
-    Dropout(0.5),
-    Dense(10, activation='softmax')
-])
-
-deep_cnn_model.compile(optimizer='adam',
-                       loss='categorical_crossentropy',
-                       metrics=['accuracy'])
-
-deep_cnn_model.summary()
-
-deep_cnn_model.save("best_deep_fashion_classifier_final.h5")
-print("✅ Model saved successfully as best_deep_fashion_classifier_final.h5")
 
