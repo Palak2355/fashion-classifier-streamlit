@@ -88,3 +88,92 @@ st.write("""
 **Summary:** Our Deep CNN model outperforms all other approaches by effectively learning hierarchical features from image data, 
 demonstrating the power of convolutional architectures for computer vision tasks.
 """)
+
+# app.py
+import streamlit as st
+import numpy as np
+from tensorflow.keras.models import load_model
+from PIL import Image, ImageOps
+import io
+
+# -------------------------
+# 1) Use the exact class_names
+#    consistent with training order
+# -------------------------
+CLASS_NAMES = [
+    'T-shirt/top', 'Trouser', 'Pullover', 'Shirt', 'Dress',
+    'Coat', 'Sandal', 'Sneaker', 'Bag', 'Ankle boot'
+]
+
+# -------------------------
+# 2) Load model once (cached)
+# -------------------------
+@st.cache_resource
+def load_fashion_model(path="best_deep_fashion_classifier_final.h5"):
+    return load_model(path)
+
+model = load_fashion_model()  # ensure this file exists in the same dir
+
+st.title("👗 Fashion Classifier (Fashion-MNIST model)")
+st.write("Upload an image and I'll predict its Fashion-MNIST class. Shows preprocessed 28×28 image and top-3 probs to help debugging.")
+
+uploaded = st.file_uploader("Choose an image...", type=["jpg","jpeg","png"])
+if uploaded is None:
+    st.info("Upload an image to get started.")
+    st.stop()
+
+# -------------------------
+# 3) Robust preprocessing function
+#    - convert to grayscale
+#    - center-crop square (optional)
+#    - resize to 28x28
+#    - optional invert if background is bright
+#    - normalize to [0,1]
+# -------------------------
+def preprocess_image(file_bytes, target_size=(28,28), invert_if_needed=True):
+    img = Image.open(io.BytesIO(file_bytes)).convert("L")  # grayscale
+    # optional: center crop to square so aspect ratio doesn't distort small items
+    w, h = img.size
+    if w != h:
+        min_side = min(w,h)
+        left = (w - min_side) // 2
+        top = (h - min_side) // 2
+        img = img.crop((left, top, left + min_side, top + min_side))
+    img = img.resize(target_size, Image.BILINEAR)
+
+    arr = np.array(img).astype(np.float32) / 255.0  # normalize 0..1
+
+    # Decide whether to invert: Fashion-MNIST has foreground bright, background dark.
+    if invert_if_needed:
+        mean_pixel = arr.mean()
+        # If the image background appears light (mean close to 1), invert so clothing becomes bright
+        if mean_pixel > 0.6:
+            arr = 1.0 - arr
+
+    # Some uploaded photos might have dark foreground on light background; the threshold can be tuned.
+    arr = arr.reshape(1, target_size[0], target_size[1], 1)
+    return arr, Image.fromarray((arr.reshape(target_size) * 255).astype(np.uint8))
+
+# read bytes
+file_bytes = uploaded.read()
+preprocessed_arr, preview_img = preprocess_image(file_bytes)
+
+# show original & processed
+col1, col2 = st.columns(2)
+with col1:
+    st.image(file_bytes, caption="Original upload", use_column_width=True)
+with col2:
+    st.image(preview_img.resize((150,150)), caption="Preprocessed 28×28 (what the model sees)", use_column_width=False)
+
+# -------------------------
+# 4) Predict and show top-3
+# -------------------------
+preds = model.predict(preprocessed_arr, verbose=0)[0]
+top3_idx = preds.argsort()[-3:][::-1]
+st.subheader("Top predictions")
+for idx in top3_idx:
+    st.write(f"- **{CLASS_NAMES[idx]}** — {preds[idx]*100:.2f}%")
+
+predicted_index = int(np.argmax(preds))
+st.success(f"Predicted class: **{CLASS_NAMES[predicted_index]}** ({preds[predicted_index]*100:.2f}%)")
+
