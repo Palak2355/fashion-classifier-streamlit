@@ -54,16 +54,6 @@ if uploaded_file is not None:
         else:
             st.error("Model not loaded. Please check the model file.")
 
-# Comparative Analysis Section
-st.header("Model Comparative Analysis")
-results = pd.DataFrame({
-    'Model': ['Logistic Regression', 'Deep CNN (Optimized)'],
-    'Test Accuracy': [0.85, 0.92],  # Placeholder values; replace with actual if available
-    'Notes': ['Linear Baseline', 'Deeper Architecture (Robust to custom images)']
-})
-st.table(results.sort_values(by='Test Accuracy', ascending=False))
-
-st.write("Note: Accuracies are approximate based on typical Fashion-MNIST results. For exact values, refer to the training script.")
 
 # Comparative Analysis Section - Minimal Version
 st.header("📊 Model Comparative Analysis")
