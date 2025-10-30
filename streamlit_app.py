@@ -134,8 +134,10 @@ if uploaded:
     img_array = np.array(image).astype("float32") / 255.0
 
     # ✅ Invert so background = dark, clothes = bright
-    if invert_choice:
+ # Only invert if the checkbox is selected
+if invert_choice:
     img_array = 1.0 - img_array
+
 
 
     # Reshape for model
