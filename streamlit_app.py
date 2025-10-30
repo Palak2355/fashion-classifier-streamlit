@@ -114,6 +114,21 @@ st.write("Upload a clothing image — it will be inverted and resized like Fashi
 uploaded = st.file_uploader("Choose an image...", type=["jpg","jpeg","png"], key="image_upload")
 
 if uploaded:
+  file_bytes = uploaded.read()
+img_array, preview_img = preprocess_image(file_bytes)
+
+# Show both images
+col1, col2 = st.columns(2)
+with col1:
+    st.image(file_bytes, caption="Original Upload", use_column_width=True)
+with col2:
+    st.image(preview_img.resize((140, 140)), caption="Preprocessed (Model Input)", use_column_width=False)
+
+# Prediction
+preds = model.predict(img_array, verbose=0)[0]
+pred_idx = int(np.argmax(preds))
+st.success(f"Predicted: **{CLASS_NAMES[pred_idx]}** ({preds[pred_idx]*100:.2f}%)")
+if uploaded:
     file_bytes = uploaded.read()
     image = Image.open(io.BytesIO(file_bytes)).convert("L")  # convert to grayscale
 # 👇 Add this toggle before preprocessing
