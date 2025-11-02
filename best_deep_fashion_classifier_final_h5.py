@@ -39,7 +39,7 @@ print("All libraries imported successfully!")
 print("TensorFlow version:", tf.__version__)
 print("--- Check Runtime: GPU should be enabled for fast training! ---")
 
-==============================================================================
+print("=" * 80)
 
 # --- Load Data from CSV ---
 try:

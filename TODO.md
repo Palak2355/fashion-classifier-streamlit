@@ -1,6 +1,9 @@
-# TODO: Deploy Fashion Classifier on Streamlit
+# TODO: Outfit Recommendation System (AI Stylist)
 
-- [x] Create requirements.txt with dependencies: streamlit, tensorflow, numpy, pillow, pandas, scikit-learn
-- [x] Create streamlit_app.py with Streamlit UI for image upload, prediction, and comparative analysis
-- [x] Test the app locally using `streamlit run streamlit_app.py` (skipped due to TensorFlow compatibility issues on local Python 3.13.3 32-bit)
-- [x] Provide guidance for deploying to Streamlit Cloud (upload to GitHub and connect)
+- [x] Update requirements.txt with CLIP dependencies (transformers, torch, colorthief for color extraction)
+- [x] Modify streamlit_app.py to integrate CLIP for classification and embeddings
+- [x] Implement outfit recommendation logic using cosine similarity on CLIP embeddings
+- [x] Add filters: color palette (extract from image), occasion (user input), season (user input)
+- [x] Use Fashion-MNIST test set as item database (convert to RGB for CLIP)
+- [x] Test the updated app locally (app runs, but may need user interaction for full test)
+- [x] Fix classification accuracy by replacing CNN with CLIP

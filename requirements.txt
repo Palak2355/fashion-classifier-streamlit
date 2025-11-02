@@ -1,9 +1,12 @@
 streamlit
-tensorflow
+torch
+transformers
 numpy
 pillow
 pandas
 scikit-learn
 matplotlib
+colorthief
+tensorflow-cpu
 keras-tuner
 xgboost
